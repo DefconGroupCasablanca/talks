@@ -3,7 +3,7 @@
 Slides were created with [reveal.js](https://revealjs.com/).
 Serve with any local http server, for example `python3 -m http.server 8000` to view the slides in their intended format (or just use [the pdf](./react2shell.pdf) in a pinch).
 
-The slides iframe a vibe coded flight protocol demo app at http://localhost:3000/. This app can be run using the included [Dockerfile](flight-poc/Dockerfile) using the following command:
+Slide 9 iframes a vibe coded flight protocol demo app at http://localhost:3000/. This app can be run using the included [Dockerfile](flight-poc/Dockerfile) using the following command:
 
 ```sh
 docker build --no-cache -t flight-poc . && \
