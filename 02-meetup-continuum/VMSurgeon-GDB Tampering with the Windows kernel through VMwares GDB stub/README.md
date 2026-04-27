@@ -1,0 +1,1 @@
+# VMSurgeon-GDB Tampering with the Windows kernel through VMwares GDB stub
